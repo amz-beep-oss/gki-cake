@@ -32,8 +32,8 @@ jobs:
           repo init -u https://android.googlesource.com/kernel/manifest -b common-android15-6.6 --depth=1
           repo sync -c -j$(nproc) --no-tags --no-clone-bundle
           
-          # Lock kernel/common source to your exact phone build version (6.6.89)
-          cd kernel/common
+          # Lock common kernel source to your exact phone build version (6.6.89)
+          cd common
           git fetch origin 8e4be6b47e40 --depth=1
           git checkout FETCH_HEAD
 
