@@ -52,6 +52,23 @@ jobs:
               f.writelines(new_lines)
           '
 
+      - name: Add sch_cake.ko to module_outs
+        run: |
+          python3 -c '
+          path = "android-kernel/common/BUILD.bazel"
+          with open(path, "r") as f:
+              content = f.read()
+          target_str = "name = \"kernel_aarch64\","
+          idx = content.find(target_str)
+          if idx != -1:
+              mod_idx = content.find("module_outs = [", idx)
+              if mod_idx != -1:
+                  insert_pos = mod_idx + len("module_outs = [")
+                  content = content[:insert_pos] + "\n        \"net/sched/sch_cake.ko\"," + content[insert_pos:]
+          with open(path, "w") as f:
+              f.write(content)
+          '
+
       - name: Build with Bazel (Kleaf)
         run: |
           cd android-kernel
