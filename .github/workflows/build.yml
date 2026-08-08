@@ -52,28 +52,19 @@ jobs:
               f.writelines(new_lines)
           '
 
-      - name: Robustly Add sch_cake.ko to module_outs
+      - name: Add sch_cake.ko to _COMMON_GKI_MODULES_LIST
         run: |
           python3 -c '
-          path = "android-kernel/common/BUILD.bazel"
+          path = "android-kernel/common/modules.bzl"
           with open(path, "r") as f:
-              lines = f.readlines()
+              content = f.read()
           
-          new_lines = []
-          in_target = False
-          added = False
-          for line in lines:
-              if "name = \"kernel_aarch64\"" in line:
-                  in_target = True
-              if in_target and "module_outs = [" in line and not added:
-                  new_lines.append(line)
-                  new_lines.append("        \"net/sched/sch_cake.ko\",\n")
-                  added = True
-                  continue
-              new_lines.append(line)
-              
+          target = "_COMMON_GKI_MODULES_LIST = ["
+          if target in content:
+              content = content.replace(target, target + "\n    \"net/sched/sch_cake.ko\",", 1)
+          
           with open(path, "w") as f:
-              f.writelines(new_lines)
+              f.write(content)
           '
 
       - name: Build with Bazel (Kleaf)
