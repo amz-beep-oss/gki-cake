@@ -16,21 +16,28 @@ jobs:
           remove-android: 'true'
           remove-haskell: 'true'
 
-      - name: Clone Android Common Kernel (android15-6.6)
+      - name: Install Repo Tool
         run: |
-          git clone --depth=1 -b android15-6.6 https://android.googlesource.com/kernel/common kernel
+          sudo curl https://storage.googleapis.com/git-repo-downloads/repo -o /usr/local/bin/repo
+          sudo chmod +x /usr/local/bin/repo
+
+      - name: Initialize Repo and Sync Android 15 6.6 Kernel
+        run: |
+          mkdir android-kernel && cd android-kernel
+          repo init -u https://android.googlesource.com/kernel/manifest -b android15-6.6 --depth=1
+          repo sync -c -j$(nproc) --no-tags --no-clone-bundle
 
       - name: Enable CAKE in Config
         run: |
-          echo "CONFIG_NET_SCH_CAKE=m" >> kernel/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_NET_SCH_CAKE=m" >> android-kernel/common/arch/arm64/configs/gki_defconfig
 
-      - name: Build Kernel and Modules
+      - name: Build with Bazel (Kleaf)
         run: |
-          cd kernel
-          LTO=thin BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh
+          cd android-kernel
+          tools/bazel run //common:kernel_aarch64_dist -- --destdir=out/dist
 
       - name: Upload Compiled sch_cake.ko
         uses: actions/upload-artifact@v4
         with:
           name: sch_cake-android15-6.6
-          path: kernel/out/android-15-6.6/dist/sch_cake.ko
+          path: android-kernel/out/dist/sch_cake.ko
