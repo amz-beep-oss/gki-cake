@@ -1,0 +1,36 @@
+name: Build CAKE for Android 15 6.6
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Maximize Disk Space
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 16384
+          temp-reserve-mb: 4096
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+
+      - name: Clone Android Common Kernel (android15-6.6)
+        run: |
+          git clone --depth=1 -b android15-6.6 https://android.googlesource.com/kernel/common kernel
+
+      - name: Enable CAKE in Config
+        run: |
+          echo "CONFIG_NET_SCH_CAKE=m" >> kernel/arch/arm64/configs/gki_defconfig
+
+      - name: Build Kernel and Modules
+        run: |
+          cd kernel
+          LTO=thin BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh
+
+      - name: Upload Compiled sch_cake.ko
+        uses: actions/upload-artifact@v4
+        with:
+          name: sch_cake-android15-6.6
+          path: kernel/out/android-15-6.6/dist/sch_cake.ko
