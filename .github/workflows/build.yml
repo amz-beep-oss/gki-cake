@@ -29,8 +29,13 @@ jobs:
       - name: Initialize Repo and Sync Android 15 6.6 Kernel
         run: |
           mkdir android-kernel && cd android-kernel
-          repo init -u https://android.googlesource.com/kernel/manifest -b common-android15-6.6-2025-06 --depth=1
+          repo init -u https://android.googlesource.com/kernel/manifest -b common-android15-6.6 --depth=1
           repo sync -c -j$(nproc) --no-tags --no-clone-bundle
+          
+          # Lock kernel/common source to your exact phone build version (6.6.89)
+          cd kernel/common
+          git fetch origin 8e4be6b47e40 --depth=1
+          git checkout FETCH_HEAD
 
       - name: Enable CAKE in Correct Position in Config
         run: |
