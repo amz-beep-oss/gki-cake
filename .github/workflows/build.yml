@@ -1,4 +1,4 @@
-name: Build CAKE for Android 15 6.6
+name: Build CAKE for Android 15 6.6.89
 
 on:
   workflow_dispatch:
@@ -26,10 +26,10 @@ jobs:
           sudo curl https://storage.googleapis.com/git-repo-downloads/repo -o /usr/local/bin/repo
           sudo chmod +x /usr/local/bin/repo
 
-      - name: Initialize Repo and Sync Android 15 6.6 Kernel
+      - name: Initialize Repo and Sync Android 15 6.6 Kernel (June 2025 / 6.6.89)
         run: |
           mkdir android-kernel && cd android-kernel
-          repo init -u https://android.googlesource.com/kernel/manifest -b common-android15-6.6-2025-06 --depth=1
+          repo init -u https://android.googlesource.com/kernel/manifest -b common-android15-6.6-2025-06
           repo sync -c -j$(nproc) --no-tags --no-clone-bundle
 
       - name: Enable CAKE in Correct Position in Config
