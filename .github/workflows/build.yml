@@ -16,6 +16,11 @@ jobs:
           remove-android: 'true'
           remove-haskell: 'true'
 
+      - name: Configure Git Identity
+        run: |
+          git config --global user.name "Build Bot"
+          git config --global user.email "buildbot@github.com"
+
       - name: Install Repo Tool
         run: |
           sudo curl https://storage.googleapis.com/git-repo-downloads/repo -o /usr/local/bin/repo
