@@ -32,7 +32,7 @@ jobs:
           repo init -u https://android.googlesource.com/kernel/manifest -b common-android15-6.6 --depth=1
           repo sync -c -j$(nproc) --no-tags --no-clone-bundle
 
-      - name: Enable CAKE Alphabetically in Config
+      - name: Enable CAKE in Correct Position in Config
         run: |
           python3 -c '
           path = "android-kernel/common/arch/arm64/configs/gki_defconfig"
@@ -42,10 +42,10 @@ jobs:
           new_lines = []
           inserted = False
           for line in lines:
-              if not inserted and line.startswith("CONFIG_NET_SCH_CODEL="):
+              new_lines.append(line)
+              if not inserted and line.startswith("CONFIG_NET_SCH_FQ_CODEL="):
                   new_lines.append("CONFIG_NET_SCH_CAKE=m\n")
                   inserted = True
-              new_lines.append(line)
           if not inserted:
               new_lines.append("CONFIG_NET_SCH_CAKE=m\n")
           with open(path, "w") as f:
