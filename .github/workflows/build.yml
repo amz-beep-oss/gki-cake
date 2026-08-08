@@ -34,7 +34,6 @@ jobs:
           
           # CRITICAL FIX: Lock to the EXACT commit hash running on your phone to match symbol CRCs
           cd common
-          git fetch https://android.googlesource.com/kernel/common 8e4be6b47e40
           git checkout 8e4be6b47e40
 
       - name: Enable CAKE in Correct Position in Config
