@@ -32,9 +32,25 @@ jobs:
           repo init -u https://android.googlesource.com/kernel/manifest -b common-android15-6.6 --depth=1
           repo sync -c -j$(nproc) --no-tags --no-clone-bundle
 
-      - name: Enable CAKE in Config
+      - name: Enable CAKE Alphabetically in Config
         run: |
-          echo "CONFIG_NET_SCH_CAKE=m" >> android-kernel/common/arch/arm64/configs/gki_defconfig
+          python3 -c '
+          path = "android-kernel/common/arch/arm64/configs/gki_defconfig"
+          with open(path, "r") as f:
+              lines = f.readlines()
+          lines = [l for l in lines if "CONFIG_NET_SCH_CAKE" not in l]
+          new_lines = []
+          inserted = False
+          for line in lines:
+              if not inserted and line.startswith("CONFIG_NET_SCH_CODEL="):
+                  new_lines.append("CONFIG_NET_SCH_CAKE=m\n")
+                  inserted = True
+              new_lines.append(line)
+          if not inserted:
+              new_lines.append("CONFIG_NET_SCH_CAKE=m\n")
+          with open(path, "w") as f:
+              f.writelines(new_lines)
+          '
 
       - name: Build with Bazel (Kleaf)
         run: |
