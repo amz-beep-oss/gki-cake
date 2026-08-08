@@ -32,10 +32,10 @@ jobs:
           repo init -u https://android.googlesource.com/kernel/manifest -b common-android15-6.6
           repo sync -c -j$(nproc) --no-clone-bundle
           
-          # Switch common kernel source to the exact June 2025 release tag (Version 6.6.89)
+          # CRITICAL FIX: Lock to the EXACT commit hash running on your phone to match symbol CRCs
           cd common
-          git fetch aosp --tags
-          git checkout android15-6.6-2025-06_r13
+          git fetch https://android.googlesource.com/kernel/common 8e4be6b47e40
+          git checkout 8e4be6b47e40
 
       - name: Enable CAKE in Correct Position in Config
         run: |
@@ -77,7 +77,45 @@ jobs:
           cd android-kernel
           tools/bazel run //common:kernel_aarch64_dist -- --destdir=out/dist
 
-      - name: Upload Compiled sch_cake.ko
+      - name: Patch Vermagic String to Bypass Google Security Checks
+        run: |
+          python3 -c '
+          import sys, re
+          
+          file_path = "android-kernel/out/dist/sch_cake.ko"
+          # The exact vermagic string required by your specific device
+          target_vermagic = b"6.6.89-android15-8-g8e4be6b47e40-ab14134548-4k SMP preempt mod_unload modversions aarch64\x00"
+          
+          with open(file_path, "rb") as f:
+              data = f.read()
+              
+          # Dynamically search for whatever vermagic the compiler spit out (e.g., -maybe-dirty)
+          pattern = b"6\.6\.89-android15-8-[^\x00]+\x00"
+          match = re.search(pattern, data)
+          
+          if match:
+              old_vermagic = match.group(0)
+              print("Found compiled vermagic:", old_vermagic)
+              
+              if len(target_vermagic) > len(old_vermagic):
+                  print("Error: Target vermagic is longer. Cannot safely patch binary.")
+                  sys.exit(1)
+                  
+              # Safely null-pad the new string to match the byte length of the old string
+              padded_target = target_vermagic.ljust(len(old_vermagic), b"\x00")
+              
+              # Overwrite the binary data
+              new_data = data[:match.start()] + padded_target + data[match.end():]
+              
+              with open(file_path, "wb") as f:
+                  f.write(new_data)
+              print("SUCCESS: Vermagic spoofed safely!")
+          else:
+              print("Error: Could not find vermagic in the module.")
+              sys.exit(1)
+          '
+
+      - name: Upload Ready-to-Use sch_cake.ko
         uses: actions/upload-artifact@v4
         with:
           name: sch_cake-android15-6.6
