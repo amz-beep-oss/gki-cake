@@ -34,7 +34,7 @@ jobs:
           
           # Lock common kernel source to your exact phone build version (6.6.89)
           cd common
-          git fetch origin 8e4be6b47e40 --depth=1
+          git fetch aosp 8e4be6b47e40 --depth=1
           git checkout FETCH_HEAD
 
       - name: Enable CAKE in Correct Position in Config
