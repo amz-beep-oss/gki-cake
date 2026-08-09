@@ -32,7 +32,7 @@ jobs:
           repo init -u https://android.googlesource.com/kernel/manifest -b common-android15-6.6
           repo sync -c -j$(nproc) --no-clone-bundle
           
-          # Lock to the exact commit hash
+          # Lock to the exact commit hash running on your device
           cd common
           git checkout 8e4be6b47e40
 
@@ -88,11 +88,6 @@ jobs:
         run: |
           cd android-kernel
           tools/bazel run //common:kernel_aarch64_dist -- --destdir=out/dist
-
-      - name: Clean Debug Symbols (Strip)
-        run: |
-          # Use llvm-strip to ensure no unneeded debug sections remain
-          android-kernel/prebuilts/clang/host/linux-x86/llvm-binutils-stable/llvm-strip --strip-debug android-kernel/out/dist/sch_cake.ko
 
       - name: Upload Ready-to-Use sch_cake.ko
         uses: actions/upload-artifact@v4
