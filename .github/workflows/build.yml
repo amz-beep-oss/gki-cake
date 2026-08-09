@@ -46,11 +46,11 @@ jobs:
           new_lines = []
           inserted = False
           for line in lines:
-              # Insert alphabetically right before CONFIG_NET_SCH_CODEL to satisfy savedefconfig
-              if not inserted and line.startswith("CONFIG_NET_SCH_CODEL="):
+              new_lines.append(line)
+              # Insert alphabetically right after CONFIG_NET_SCH_FQ_CODEL to satisfy savedefconfig
+              if not inserted and line.startswith("CONFIG_NET_SCH_FQ_CODEL="):
                   new_lines.append("CONFIG_NET_SCH_CAKE=m\n")
                   inserted = True
-              new_lines.append(line)
           if not inserted:
               new_lines.append("CONFIG_NET_SCH_CAKE=m\n")
           with open(path, "w") as f:
