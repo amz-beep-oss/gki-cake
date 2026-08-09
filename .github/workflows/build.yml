@@ -80,14 +80,23 @@ jobs:
           # 1. Disable conntrack in CAKE to eliminate nf_ct_get_tuple_skb dependency
           code = "#undef CONFIG_NF_CONNTRACK\n#undef CONFIG_NF_CONNTRACK_MARK\n" + code
 
-          # 2. Inline local jhash replacement for flow_hash_from_keys
-          replacement = """
-          #include <linux/jhash.h>
-          static inline u32 my_flow_hash_from_keys(struct flow_keys *keys) {
-              return jhash(keys, sizeof(*keys), 0x9e3779b9);
-          }
-          """
-          code = code.replace("#include <net/pkt_sched.h>", "#include <net/pkt_sched.h>\n" + replacement)
+          # 2. Define inlined jhash helper for flow_hash_from_keys
+          helper_code = """
+#include <linux/jhash.h>
+static inline u32 my_flow_hash_from_keys(struct flow_keys *keys) {
+    return jhash(keys, sizeof(*keys), 0x9e3779b9);
+}
+"""
+
+          # 3. Find the last #include line in sch_cake.c and insert helper_code right after it
+          last_include = code.rfind("#include")
+          if last_include != -1:
+              eol = code.find("\n", last_include)
+              code = code[:eol+1] + "\n" + helper_code + "\n" + code[eol+1:]
+          else:
+              code = helper_code + code
+
+          # 4. Replace external function calls with inline helper
           code = code.replace("flow_hash_from_keys(", "my_flow_hash_from_keys(")
 
           with open(path, "w") as f:
