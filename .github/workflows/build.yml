@@ -36,22 +36,24 @@ jobs:
           cd common
           git checkout 8e4be6b47e40
 
-      - name: Enable CAKE in Correct Position in Config
+      - name: Enable CAKE and Allocate Padding Space
         run: |
           python3 -c '
           path = "android-kernel/common/arch/arm64/configs/gki_defconfig"
           with open(path, "r") as f:
               lines = f.readlines()
-          lines = [l for l in lines if "CONFIG_NET_SCH_CAKE" not in l]
+          lines = [l for l in lines if "CONFIG_NET_SCH_CAKE" not in l and "CONFIG_LOCALVERSION" not in l]
           new_lines = []
           inserted = False
           for line in lines:
               new_lines.append(line)
               if not inserted and line.startswith("CONFIG_NET_SCH_FQ_CODEL="):
                   new_lines.append("CONFIG_NET_SCH_CAKE=m\n")
+                  new_lines.append("CONFIG_LOCALVERSION=\"-android15-8-g8e4be6b47e40-ab14134548-4k-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\"\n")
                   inserted = True
           if not inserted:
               new_lines.append("CONFIG_NET_SCH_CAKE=m\n")
+              new_lines.append("CONFIG_LOCALVERSION=\"-android15-8-g8e4be6b47e40-ab14134548-4k-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\"\n")
           with open(path, "w") as f:
               f.writelines(new_lines)
           '
