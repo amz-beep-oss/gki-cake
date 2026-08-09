@@ -85,6 +85,39 @@ jobs:
           cd android-kernel
           tools/bazel run //common:kernel_aarch64_dist -- --destdir=out/dist
 
+      - name: Patch Vermagic to Strip -maybe-dirty
+        run: |
+          python3 -c '
+          import sys, re
+          
+          file_path = "android-kernel/out/dist/sch_cake.ko"
+          # The exact clean vermagic string required by your device
+          target_vermagic = b"6.6.89-android15-8-g8e4be6b47e40-ab14134548-4k SMP preempt mod_unload modversions aarch64\x00"
+          
+          with open(file_path, "rb") as f:
+              data = f.read()
+              
+          # Search for whatever vermagic the compiler outputted containing maybe-dirty
+          pattern = b"6\.6\.89-android15-8-[^\x00]+\x00"
+          match = re.search(pattern, data)
+          
+          if match:
+              old_vermagic = match.group(0)
+              print("Found compiled vermagic:", old_vermagic)
+              
+              # Null-pad target to match the exact length of the old string safely
+              padded_target = target_vermagic.ljust(len(old_vermagic), b"\x00")
+              
+              new_data = data[:match.start()] + padded_target + data[match.end():]
+              
+              with open(file_path, "wb") as f:
+                  f.write(new_data)
+              print("SUCCESS: Vermagic patched successfully!")
+          else:
+              print("Error: Could not find vermagic in the module.")
+              sys.exit(1)
+          '
+
       - name: Upload Ready-to-Use sch_cake.ko
         uses: actions/upload-artifact@v4
         with:
