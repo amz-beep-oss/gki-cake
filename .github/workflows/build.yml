@@ -36,24 +36,23 @@ jobs:
           cd common
           git checkout 8e4be6b47e40
 
-      - name: Enable CAKE and Allocate Padding Space
+      - name: Enable CAKE in Config
         run: |
           python3 -c '
           path = "android-kernel/common/arch/arm64/configs/gki_defconfig"
           with open(path, "r") as f:
               lines = f.readlines()
-          lines = [l for l in lines if "CONFIG_NET_SCH_CAKE" not in l and "CONFIG_LOCALVERSION" not in l]
+          lines = [l for l in lines if "CONFIG_NET_SCH_CAKE" not in l]
           new_lines = []
           inserted = False
           for line in lines:
-              new_lines.append(line)
-              if not inserted and line.startswith("CONFIG_NET_SCH_FQ_CODEL="):
+              # Insert alphabetically right before CONFIG_NET_SCH_CODEL to satisfy savedefconfig
+              if not inserted and line.startswith("CONFIG_NET_SCH_CODEL="):
                   new_lines.append("CONFIG_NET_SCH_CAKE=m\n")
-                  new_lines.append("CONFIG_LOCALVERSION=\"-android15-8-g8e4be6b47e40-ab14134548-4k-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\"\n")
                   inserted = True
+              new_lines.append(line)
           if not inserted:
               new_lines.append("CONFIG_NET_SCH_CAKE=m\n")
-              new_lines.append("CONFIG_LOCALVERSION=\"-android15-8-g8e4be6b47e40-ab14134548-4k-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\"\n")
           with open(path, "w") as f:
               f.writelines(new_lines)
           '
@@ -73,48 +72,18 @@ jobs:
               f.write(content)
           '
 
+      - name: Commit Changes to Clean Git Tree
+        run: |
+          cd android-kernel/common
+          git add arch/arm64/configs/gki_defconfig modules.bzl
+          git config user.name "Build Bot"
+          git config user.email "buildbot@github.com"
+          git commit -m "Enable CAKE module"
+
       - name: Build with Bazel (Kleaf)
         run: |
           cd android-kernel
           tools/bazel run //common:kernel_aarch64_dist -- --destdir=out/dist
-
-      - name: Patch Vermagic String to Bypass Google Security Checks
-        run: |
-          python3 -c '
-          import sys, re
-          
-          file_path = "android-kernel/out/dist/sch_cake.ko"
-          # The exact vermagic string required by your specific device
-          target_vermagic = b"6.6.89-android15-8-g8e4be6b47e40-ab14134548-4k SMP preempt mod_unload modversions aarch64\x00"
-          
-          with open(file_path, "rb") as f:
-              data = f.read()
-              
-          # Dynamically search for whatever vermagic the compiler spit out (e.g., -maybe-dirty)
-          pattern = b"6\.6\.89-android15-8-[^\x00]+\x00"
-          match = re.search(pattern, data)
-          
-          if match:
-              old_vermagic = match.group(0)
-              print("Found compiled vermagic:", old_vermagic)
-              
-              if len(target_vermagic) > len(old_vermagic):
-                  print("Error: Target vermagic is longer. Cannot safely patch binary.")
-                  sys.exit(1)
-                  
-              # Safely null-pad the new string to match the byte length of the old string
-              padded_target = target_vermagic.ljust(len(old_vermagic), b"\x00")
-              
-              # Overwrite the binary data
-              new_data = data[:match.start()] + padded_target + data[match.end():]
-              
-              with open(file_path, "wb") as f:
-                  f.write(new_data)
-              print("SUCCESS: Vermagic spoofed safely!")
-          else:
-              print("Error: Could not find vermagic in the module.")
-              sys.exit(1)
-          '
 
       - name: Upload Ready-to-Use sch_cake.ko
         uses: actions/upload-artifact@v4
