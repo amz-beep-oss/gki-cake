@@ -82,11 +82,11 @@ jobs:
 
           # 2. Define inlined jhash helper for flow_hash_from_keys
           helper_code = """
-#include <linux/jhash.h>
-static inline u32 my_flow_hash_from_keys(struct flow_keys *keys) {
-    return jhash(keys, sizeof(*keys), 0x9e3779b9);
-}
-"""
+          #include <linux/jhash.h>
+          static inline u32 my_flow_hash_from_keys(struct flow_keys *keys) {
+              return jhash(keys, sizeof(*keys), 0x9e3779b9);
+          }
+          """
 
           # 3. Find the last #include line in sch_cake.c and insert helper_code right after it
           last_include = code.rfind("#include")
