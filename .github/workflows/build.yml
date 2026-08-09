@@ -32,7 +32,7 @@ jobs:
           repo init -u https://android.googlesource.com/kernel/manifest -b common-android15-6.6
           repo sync -c -j$(nproc) --no-clone-bundle
           
-          # Lock to the exact commit hash running on your device
+          # Lock to the exact commit hash
           cd common
           git checkout 8e4be6b47e40
 
@@ -71,22 +71,18 @@ jobs:
               f.write(content)
           '
 
-      - name: Force Disable -maybe-dirty Tag in Kernel Source
+      - name: Hijack Kleaf Stamping to Force Custom Vermagic
         run: |
-          # Strip any occurrence of -maybe-dirty from the kernel setlocalversion script
-          sed -i 's/-maybe-dirty//g' android-kernel/common/scripts/setlocalversion
-
-      - name: Commit Changes to Git Tree
-        run: |
-          cd android-kernel/common
-          git add arch/arm64/configs/gki_defconfig modules.bzl scripts/setlocalversion
-          git config user.name "Build Bot"
-          git config user.email "buildbot@github.com"
-          git commit -m "Enable CAKE module and sanitize version script"
+          # Kleaf hardcodes '-maybe-dirty' for unstamped builds in its Python/Starlark files.
+          # We search and replace that exact fallback string with the hash and build ID required by your phone.
+          find android-kernel/build -type f -name "*.bzl" -exec sed -i "s/-maybe-dirty/-g8e4be6b47e40-ab14134548/g" {} +
+          find android-kernel/build -type f -name "*.sh" -exec sed -i "s/-maybe-dirty/-g8e4be6b47e40-ab14134548/g" {} +
+          find android-kernel/build -type f -name "*.py" -exec sed -i "s/-maybe-dirty/-g8e4be6b47e40-ab14134548/g" {} +
 
       - name: Build with Bazel (Kleaf)
         run: |
           cd android-kernel
+          # We intentionally build WITHOUT --config=stamp to trigger our hijacked fallback string
           tools/bazel run //common:kernel_aarch64_dist -- --destdir=out/dist
 
       - name: Upload Ready-to-Use sch_cake.ko
