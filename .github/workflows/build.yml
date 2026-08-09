@@ -32,7 +32,6 @@ jobs:
           repo init -u https://android.googlesource.com/kernel/manifest -b common-android15-6.6
           repo sync -c -j$(nproc) --no-clone-bundle
           
-          # Lock to the exact commit hash
           cd common
           git checkout 8e4be6b47e40
 
@@ -71,10 +70,32 @@ jobs:
               f.write(content)
           '
 
+      - name: Patch sch_cake.c to Remove Trimmed Dependencies
+        run: |
+          python3 -c '
+          path = "android-kernel/common/net/sched/sch_cake.c"
+          with open(path, "r") as f:
+              code = f.read()
+
+          # 1. Disable conntrack in CAKE to eliminate nf_ct_get_tuple_skb dependency
+          code = "#undef CONFIG_NF_CONNTRACK\n#undef CONFIG_NF_CONNTRACK_MARK\n" + code
+
+          # 2. Inline local jhash replacement for flow_hash_from_keys
+          replacement = """
+          #include <linux/jhash.h>
+          static inline u32 my_flow_hash_from_keys(struct flow_keys *keys) {
+              return jhash(keys, sizeof(*keys), 0x9e3779b9);
+          }
+          """
+          code = code.replace("#include <net/pkt_sched.h>", "#include <net/pkt_sched.h>\n" + replacement)
+          code = code.replace("flow_hash_from_keys(", "my_flow_hash_from_keys(")
+
+          with open(path, "w") as f:
+              f.write(code)
+          '
+
       - name: Hijack Kleaf Stamping to Force Custom Vermagic
         run: |
-          # Kleaf hardcodes '-maybe-dirty' for unstamped builds in its Python/Starlark files.
-          # We search and replace that exact fallback string with the hash and build ID required by your phone.
           find android-kernel/build -type f -name "*.bzl" -exec sed -i "s/-maybe-dirty/-g8e4be6b47e40-ab14134548/g" {} +
           find android-kernel/build -type f -name "*.sh" -exec sed -i "s/-maybe-dirty/-g8e4be6b47e40-ab14134548/g" {} +
           find android-kernel/build -type f -name "*.py" -exec sed -i "s/-maybe-dirty/-g8e4be6b47e40-ab14134548/g" {} +
@@ -82,7 +103,6 @@ jobs:
       - name: Build with Bazel (Kleaf)
         run: |
           cd android-kernel
-          # We intentionally build WITHOUT --config=stamp to trigger our hijacked fallback string
           tools/bazel run //common:kernel_aarch64_dist -- --destdir=out/dist
 
       - name: Upload Ready-to-Use sch_cake.ko
