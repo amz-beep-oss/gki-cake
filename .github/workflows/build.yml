@@ -75,32 +75,22 @@ jobs:
           python3 -c '
           path = "android-kernel/common/net/sched/sch_cake.c"
           with open(path, "r") as f:
-              lines = f.readlines()
+              code = f.read()
 
-          # 1. Disable conntrack in CAKE
-          out = ["#undef CONFIG_NF_CONNTRACK\n", "#undef CONFIG_NF_CONNTRACK_MARK\n"]
+          # 1. Build a header block with our undefs and our macro definition
+          header = "#undef CONFIG_NF_CONNTRACK\n"
+          header += "#undef CONFIG_NF_CONNTRACK_MARK\n"
+          header += "#include <linux/jhash.h>\n"
+          header += "#define my_flow_hash_from_keys(k) jhash(k, sizeof(*(k)), 0x9e3779b9)\n\n"
+
+          # 2. Slap it directly at the absolute top of the file
+          code = header + code
           
-          # 2. Find the exact index of the last #include statement
-          last_inc = -1
-          for i, line in enumerate(lines):
-              if line.startswith("#include"):
-                  last_inc = i
+          # 3. Replace the function calls
+          code = code.replace("flow_hash_from_keys(", "my_flow_hash_from_keys(")
 
-          # 3. Define our helper function dynamically
-          helper = "\n#include <linux/jhash.h>\nstatic inline u32 my_flow_hash_from_keys(struct flow_keys *keys) {\n    return jhash(keys, sizeof(*keys), 0x9e3779b9);\n}\n"
-
-          # 4. Rebuild the file line-by-line
-          for i, line in enumerate(lines):
-              # Replace external calls with our local helper
-              line = line.replace("flow_hash_from_keys(", "my_flow_hash_from_keys(")
-              out.append(line)
-              
-              # Inject the helper function right after the last include
-              if i == last_inc:
-                  out.append(helper)
-          
           with open(path, "w") as f:
-              f.writelines(out)
+              f.write(code)
           '
 
       - name: Hijack Kleaf Stamping to Force Custom Vermagic
