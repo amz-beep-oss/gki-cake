@@ -75,27 +75,32 @@ jobs:
           python3 -c '
           path = "android-kernel/common/net/sched/sch_cake.c"
           with open(path, "r") as f:
-              code = f.read()
+              lines = f.readlines()
 
           # 1. Disable conntrack in CAKE
-          code = "#undef CONFIG_NF_CONNTRACK\n#undef CONFIG_NF_CONNTRACK_MARK\n" + code
+          out = ["#undef CONFIG_NF_CONNTRACK\n", "#undef CONFIG_NF_CONNTRACK_MARK\n"]
+          
+          # 2. Find the exact index of the last #include statement
+          last_inc = -1
+          for i, line in enumerate(lines):
+              if line.startswith("#include"):
+                  last_inc = i
 
-          # 2. Build helper string line-by-line (Immune to YAML indentation bugs)
-          helper = ""
-          helper += "#include <linux/jhash.h>\n"
-          helper += "static inline u32 my_flow_hash_from_keys(struct flow_keys *keys) {\n"
-          helper += "    return jhash(keys, sizeof(*keys), 0x9e3779b9);\n"
-          helper += "}\n\n"
+          # 3. Define our helper function dynamically
+          helper = "\n#include <linux/jhash.h>\nstatic inline u32 my_flow_hash_from_keys(struct flow_keys *keys) {\n    return jhash(keys, sizeof(*keys), 0x9e3779b9);\n}\n"
 
-          # 3. Inject helper directly before cake_hash
-          target = "static u32 cake_hash("
-          code = code.replace(target, helper + target)
-
-          # 4. Replace external calls with our local helper
-          code = code.replace("flow_hash_from_keys(", "my_flow_hash_from_keys(")
-
+          # 4. Rebuild the file line-by-line
+          for i, line in enumerate(lines):
+              # Replace external calls with our local helper
+              line = line.replace("flow_hash_from_keys(", "my_flow_hash_from_keys(")
+              out.append(line)
+              
+              # Inject the helper function right after the last include
+              if i == last_inc:
+                  out.append(helper)
+          
           with open(path, "w") as f:
-              f.write(code)
+              f.writelines(out)
           '
 
       - name: Hijack Kleaf Stamping to Force Custom Vermagic
